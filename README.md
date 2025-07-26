@@ -14,20 +14,91 @@ This guide will walk you through creating a minimal Azure Function ("Hello World
 - **Azure subscription**  
 - **Git** (optional, for code versioning)
 
+### 1. Create a `source.ps1` file for shared variables - modify variable contents as needed
+
+```powershell name=source.ps1
+# source.ps1
+
+$RG_NAME         = "az-204-container-traffic-lab-rg"
+$LOCATION        = "westus"
+$STORAGE_NAME    = "containerstorage0726am"
+
+$PROJECT_FOLDER  = "ContainerTrafficFunctionProj"
+$FUNCTION_NAME   = "ContainerTrafficFunction"
+$PUBLISH_OUTPUT  = "publish_output"
+$IMAGE_NAME      = "container-traffic-func-img"
+$CONTAINER_NAME  = "container-traffic-func-name"
+$HOST_PORT       = 7071
+$CONTAINER_PORT  = 80
+
+# ACR-specific
+$ACR_NAME        = "container-traffic-reg"
+$ACR_LOGIN_SVR   = "$ACR_NAME.azurecr.io"
+$IMAGE_TAG       = "v1.0.0"
+$FULL_IMAGE_NAME = "$ACR_LOGIN_SVR/$IMAGE_NAME:$IMAGE_TAG"
+
+# Try to get subscription ID from environment variable, otherwise fetch from Azure CLI
+if ($env:AZURE_SUBSCRIPTION_ID) {
+    $SUBSCRIPTION_ID = $env:AZURE_SUBSCRIPTION_ID
+} else {
+    $SUBSCRIPTION_ID = (az account show --query id -o tsv)
+}
+
+Write-Host "Resource Group: $RG_NAME"
+Write-Host "Location: $LOCATION"
+Write-Host "Storage Account: $STORAGE_NAME"
 
 
-### 1. Application Setup
+Write-Host "Project Folder: $PROJECT_FOLDER"
+Write-Host "Function Name: $FUNCTION_NAME"
+Write-Host "Publish Output Folder: $PUBLISH_OUTPUT"
+Write-Host "Image Name: $IMAGE_NAME"
+Write-Host "Container Name: $CONTAINER_NAME"       
+Write-Host "Host Port: $HOST_PORT"
+Write-Host "Container Port: $CONTAINER_PORT"
+Write-Host "Subscription ID: $SUBSCRIPTION_ID"
+Write-Host "ACR Name: $ACR_NAME"
+Write-Host "ACR Login Server: $ACR_LOGIN_SVR"
+Write-Host "Full Image Name: $FULL_IMAGE_NAME"
 
-#### Create script to Scaffold a new Azure Function (.NET) with HTTP Trigger (`init-function.ps1`) and run it.
+#Write-Host "Queue Name: $QUEUE_NAME"
+#Write-Host "Topic Name: $TOPIC_NAME"
+
+```
+
+### 2. Application Setup
+
+#### Create a script to scaffold a new Azure Function (.NET) with an HTTP Trigger (`init-function.ps1`) and run it.
 
 ```powershell name=init-function.ps1
 # init-function.ps1
-func init HelloFunctionProj --worker-runtime dotnet --target-framework net8.0
+
+. .\source.ps1  # Dot-source the variables file
+$targetPath = Join-Path $PSScriptRoot $PROJECT_FOLDER
+if (Test-Path $targetPath) {
+    Write-Error "The project folder '$targetPath' already exists. Please clean up (delete or rename) before running this script again."
+    exit 1
+}
+
+
+func init "$PROJECT_FOLDER" --worker-runtime dotnet --target-framework net8.0
 
 $originalDir = Get-Location
 try {
-    Set-Location "$PSScriptRoot\HelloFunctionProj"
-   func new --name HelloFunction --template "HTTP trigger"
+    Set-Location "${PSScriptRoot}\${PROJECT_FOLDER}"
+   func new --name "$FUNCTION_NAME" --template "HTTP trigger"
+
+
+
+       # Define Dockerfile content
+    $dockerFileContent = @"
+FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4 AS base
+WORKDIR /home/site/wwwroot
+COPY ./$PUBLISH_OUTPUT ./
+"@
+
+    # Create or overwrite Dockerfile
+    Set-Content -Path "Dockerfile" -Value $dockerFileContent -Encoding UTF8
 }
 catch {
     Write-Error "Script failed: $_"
@@ -38,6 +109,44 @@ finally {
 ```
 #### Run the script
 .\init-function.ps1
+
+
+
+
+### 3. Docker Setup and Run Locally
+
+#### Create a script to create the Docker image and the Docker container locally and run the Docker container locally (`create-docker-image-and-local-container.ps1`) and run it.
+
+```powershell name=create-docker-image-and-local-container.ps1
+# create-docker-image-and-local-container.ps1
+
+. .\source.ps1  # Dot-source the variables file
+$targetPath = Join-Path $PSScriptRoot $PROJECT_FOLDER
+
+$originalDir = Get-Location
+try {
+    Set-Location "${PSScriptRoot}\${PROJECT_FOLDER}"
+    dotnet publish -c Release -o "./$PUBLISH_OUTPUT"
+    docker build -t $IMAGE_NAME .
+    docker run -p "${HOST_PORT}:${CONTAINER_PORT}" --name $CONTAINER_NAME $IMAGE_NAME
+}
+catch {
+    Write-Error "Script failed: $_"
+}
+finally {
+    Set-Location $originalDir
+}
+
+
+```
+#### Run the script
+.\create-docker-image-and-local-container.ps1
+
+
+
+
+
+
 
 ### 2. Add Dockerfile
 
@@ -53,9 +162,9 @@ try {
 
     # Define Dockerfile content
     $dockerFileContent = @"
-FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet8
+FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4 AS base
 WORKDIR /home/site/wwwroot
-COPY . .
+COPY ./publish_output ./
 "@
 
     # Create or overwrite Dockerfile
@@ -74,8 +183,18 @@ finally {
 
 ---
 
-## 1. Create a Minimal Azure Function
 
+
+
+
+
+
+
+
+a
+
+## 1. Create a Minimal Azure Function
+b
 ```bash
 # Create and enter a new folder
 mkdir hello-func && cd hello-func
