@@ -1,3 +1,3 @@
-FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet8
+FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4 AS base
 WORKDIR /home/site/wwwroot
-COPY . .
+COPY ./publish_output ./
