@@ -2,16 +2,16 @@
 
 $RG_NAME         = "az-204-container-traffic-lab-rg"
 $LOCATION        = "westus"
-$STORAGE_NAME    = "containerstorage0726am"
+$STORAGE_NAME    = "containerstorage0727am"
+$PLAN_NAME       = "container-app-plan"
 $PROJECT_FOLDER  = "ContainerTrafficFunctionProj"
+$FUNCTION_APP_NAME   = "container-traffic-func-app"
 $FUNCTION_NAME   = "ContainerTrafficFunction"
 $PUBLISH_OUTPUT  = "publish_output"
 $IMAGE_NAME      = "container-traffic-func-img"
 $CONTAINER_NAME  = "container-traffic-func-name"
 $HOST_PORT       = 7075
 $CONTAINER_PORT  = 80
-$KEY_NAME        = "dev-key"
-$KEY_VALUE       = "supersecretkey"
 
 # ACR-specific
 $ACR_NAME        = "containertrafficreg0727am"
@@ -29,7 +29,9 @@ if ($env:AZURE_SUBSCRIPTION_ID) {
 Write-Host "Resource Group: $RG_NAME"
 Write-Host "Location: $LOCATION"
 Write-Host "Storage Account: $STORAGE_NAME"
+Write-Host "Plan Name: $PLAN_NAME"
 Write-Host "Project Folder: $PROJECT_FOLDER"
+Write-Host "Function App Name: $FUNCTION_APP_NAME"
 Write-Host "Function Name: $FUNCTION_NAME"
 Write-Host "Publish Output Folder: $PUBLISH_OUTPUT"
 Write-Host "Image Name: $IMAGE_NAME"
