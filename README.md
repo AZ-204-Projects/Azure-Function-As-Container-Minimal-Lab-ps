@@ -21,21 +21,22 @@ This guide will walk you through creating a minimal Azure Function ("Hello World
 
 $RG_NAME         = "az-204-container-traffic-lab-rg"
 $LOCATION        = "westus"
-$STORAGE_NAME    = "containerstorage0726am"
-
+$STORAGE_NAME    = "containerstorage0727am"
+$PLAN_NAME       = "container-app-plan"
 $PROJECT_FOLDER  = "ContainerTrafficFunctionProj"
+$FUNCTION_APP_NAME   = "container-traffic-func-app"
 $FUNCTION_NAME   = "ContainerTrafficFunction"
 $PUBLISH_OUTPUT  = "publish_output"
 $IMAGE_NAME      = "container-traffic-func-img"
 $CONTAINER_NAME  = "container-traffic-func-name"
-$HOST_PORT       = 7071
+$HOST_PORT       = 7075
 $CONTAINER_PORT  = 80
 
 # ACR-specific
-$ACR_NAME        = "container-traffic-reg"
+$ACR_NAME        = "containertrafficreg0727am"
 $ACR_LOGIN_SVR   = "$ACR_NAME.azurecr.io"
 $IMAGE_TAG       = "v1.0.0"
-$FULL_IMAGE_NAME = "$ACR_LOGIN_SVR/$IMAGE_NAME:$IMAGE_TAG"
+$FULL_IMAGE_NAME = "${ACR_LOGIN_SVR}/${IMAGE_NAME}:${IMAGE_TAG}"
 
 # Try to get subscription ID from environment variable, otherwise fetch from Azure CLI
 if ($env:AZURE_SUBSCRIPTION_ID) {
@@ -47,9 +48,9 @@ if ($env:AZURE_SUBSCRIPTION_ID) {
 Write-Host "Resource Group: $RG_NAME"
 Write-Host "Location: $LOCATION"
 Write-Host "Storage Account: $STORAGE_NAME"
-
-
+Write-Host "Plan Name: $PLAN_NAME"
 Write-Host "Project Folder: $PROJECT_FOLDER"
+Write-Host "Function App Name: $FUNCTION_APP_NAME"
 Write-Host "Function Name: $FUNCTION_NAME"
 Write-Host "Publish Output Folder: $PUBLISH_OUTPUT"
 Write-Host "Image Name: $IMAGE_NAME"
@@ -61,8 +62,6 @@ Write-Host "ACR Name: $ACR_NAME"
 Write-Host "ACR Login Server: $ACR_LOGIN_SVR"
 Write-Host "Full Image Name: $FULL_IMAGE_NAME"
 
-#Write-Host "Queue Name: $QUEUE_NAME"
-#Write-Host "Topic Name: $TOPIC_NAME"
 
 ```
 
@@ -136,15 +135,14 @@ catch {
 finally {
     Set-Location $originalDir
 }
-
-
 ```
 #### Run the script
 .\create-docker-image-and-local-container.ps1
 
-### 3. Docker Setup and Run Locally
 
-#### Create a script to create a Azure Resource Group, an ACR and push the image from Docker Desktop to the ACR container (`publish-to-acr.ps1`) and run it.
+### 4. Resource Group, ACR, push, 
+
+#### Create a script to create a Azure Resource Group, and ACR and push the image from Docker Desktop to the ACR container (`publish-to-acr.ps1`) and run it.
 
 ```powershell name=publish-to-acr.ps1
 
@@ -176,165 +174,69 @@ docker push $FULL_IMAGE_NAME
 
 
 
-### 2. Add Dockerfile
 
-#### Create script to Scaffold a Dockerfile (`create_Dockerfile.ps1`) and run it.
+### 5. Resource Group, ACR, push, 
 
-```powershell name=create_Dockerfile.ps1
-# Save the original directory
-$originalDir = Get-Location
+#### Create a script to create a Azure Resource Group, and ACR and push the image from Docker Desktop to the ACR container (`publish-to-acr.ps1`) and run it.
 
-try {
-    # Change to the target project directory
-    Set-Location "$PSScriptRoot\HelloFunctionProj"
+```powershell name=create-function-app-configure-show.ps1
 
-    # Define Dockerfile content
-    $dockerFileContent = @"
-FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4 AS base
-WORKDIR /home/site/wwwroot
-COPY ./publish_output ./
-"@
+. .\source.ps1  # Reference your variable file
 
-    # Create or overwrite Dockerfile
-    Set-Content -Path "Dockerfile" -Value $dockerFileContent -Encoding UTF8
-}
-catch {
-    Write-Error "An error occurred: $_"
-}
-finally {
-    # Restore the original directory
-    Set-Location $originalDir
-}.\
+# 1. Enable ACR admin (idempotent)
+az acr update -n $ACR_NAME --admin-enabled true
+
+# 2. Create Storage Account (idempotent)
+az storage account create --name $STORAGE_NAME --location $LOCATION --resource-group $RG_NAME --sku Standard_LRS
+
+# 3. Create Function App Plan
+az functionapp plan create `
+  --name $PLAN_NAME `
+  --resource-group $RG_NAME `
+  --location $LOCATION `
+  --number-of-workers 1 `
+  --sku EP1 `
+  --is-linux
+
+# 4. Create (or update) Function App 
+az functionapp create `
+  --name $FUNCTION_APP_NAME `
+  --storage-account $STORAGE_NAME `
+  --resource-group $RG_NAME `
+  --plan $PLAN_NAME `
+  --image $FULL_IMAGE_NAME `
+  --functions-version 4 `
+  --os-type Linux `
+  --runtime custom
+
+# 5. Configure ACR authentication for Function App
+az functionapp config container set `
+  --name $FUNCTION_APP_NAME `
+  --resource-group $RG_NAME `
+  --image $FULL_IMAGE_NAME `
+  --registry-username $(az acr credential show -n $ACR_NAME --query username -o tsv) `
+  --registry-password $(az acr credential show -n $ACR_NAME --query passwords[0].value -o tsv)
+
+# 6. Show function and key in log or terminal
+   Start-Sleep -Seconds 5
+   az functionapp show --name $FUNCTION_APP_NAME --resource-group $RG_NAME --query defaultHostName -o tsv
+   az functionapp function keys list --function-name $FUNCTION_NAME --name $FUNCTION_APP_NAME --resource-group $RG_NAME
+
+
 ```
 #### Run the script
-.\publish-to-acr.ps1
-
----
+.\create-function-app-configure-show.ps1
 
 
 
+### 5. Test API from browser 
 
+#### Create a script to create a Azure Resource Group, and ACR and push the image from Docker Desktop to the ACR container (`publish-to-acr.ps1`) and run it.
 
-
-
-
-
-a
-
-## 1. Create a Minimal Azure Function
-b
-```bash
-# Create and enter a new folder
-mkdir hello-func && cd hello-func
-
-# Initialize a new Azure Functions project (C# example)
-func init --worker-runtime dotnet --target-framework net6.0
-
-# Add a new HTTP-triggered function
-func new --template "HTTP trigger" --name HelloWorld
+```
+https://container-traffic-func-app.azurewebsites.net/api/ContainerTrafficFunction?code=<the code>&name=<some text>
 ```
 
-Edit the generated `HelloWorld.cs` to print "Hello World":
-
-```csharp
-[Function("HelloWorld")]
-public static HttpResponseData Run(
-    [HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequestData req,
-    FunctionContext executionContext)
-{
-    var response = req.CreateResponse(HttpStatusCode.OK);
-    response.WriteString("Hello World");
-    return response;
-}
-```
-
----
-
-## 2. Add a Dockerfile
-
-Create a file named `Dockerfile` in the project root:
-
-```dockerfile
-FROM mcr.microsoft.com/azure-functions/dotnet:4-appservice
-WORKDIR /home/site/wwwroot
-COPY . .
-```
-
----
-
-## 3. Build and Test the Container Locally
-
-```bash
-# Build the Docker image
-docker build -t hello-func .
-
-# Run the container locally
-docker run -p 8080:80 hello-func
-
-# Test in your browser or with curl
-curl http://localhost:8080/api/HelloWorld
-```
-
----
-
-## 4. Push the Image to Azure Container Registry (ACR)
-
-```bash
-# Log in to Azure
-az login
-
-# Create a resource group (if needed)
-az group create --name myResourceGroup --location eastus
-
-# Create an Azure Container Registry
-az acr create --resource-group myResourceGroup --name myacr12345 --sku Basic
-
-# Log in to ACR
-az acr login --name myacr12345
-
-# Tag your image for ACR
-docker tag hello-func myacr12345.azurecr.io/hello-func:v1
-
-# Push the image
-docker push myacr12345.azurecr.io/hello-func:v1
-```
-
----
-
-## 5. Deploy the Containerized Function to Azure
-
-```bash
-# Create a storage account (required by Azure Functions)
-az storage account create --name mystorage12345 --location eastus --resource-group myResourceGroup --sku Standard_LRS
-
-# Create the function app using the custom container
-az functionapp create I am running a few minutes late; my previous meeting is running over.
-
-
-
-  --resource-group myResourceGroup \
-  --name myhellofuncapp \
-  --storage-account mystorage12345 \
-  --plan myAppServicePlan \
-  --deployment-container-image-name myacr12345.azurecr.io/hello-func:v1 \
-  --functions-version 4 \
-  --os-type Linux
-
-# (Optional) Configure the function app to use ACR credentials
-az functionapp config container set \
-  --name myhellofuncapp \
-  --resource-group myResourceGroup \
-  --docker-registry-server-url https://myacr12345.azurecr.io \
-  --docker-registry-server-user <ACR_USERNAME> \
-  --docker-registry-server-password <ACR_PASSWORD>
-```
-
-Find your function's URL in the Azure Portal or by running:
-
-```bash
-az functionapp show --name myhellofuncapp --resource-group myResourceGroup --query defaultHostName
-# Then: curl https://<defaultHostName>/api/HelloWorld
-```
 
 ---
 
