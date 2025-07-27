@@ -14,7 +14,7 @@ $KEY_NAME        = "dev-key"
 $KEY_VALUE       = "supersecretkey"
 
 # ACR-specific
-$ACR_NAME        = "container-traffic-reg"
+$ACR_NAME        = "containertrafficreg0727am"
 $ACR_LOGIN_SVR   = "$ACR_NAME.azurecr.io"
 $IMAGE_TAG       = "v1.0.0"
 $FULL_IMAGE_NAME = "${ACR_LOGIN_SVR}/${IMAGE_NAME}:${IMAGE_TAG}"

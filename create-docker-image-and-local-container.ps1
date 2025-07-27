@@ -10,9 +10,9 @@ try {
     docker build -t $IMAGE_NAME .
     docker run -p "${HOST_PORT}:${CONTAINER_PORT}" --name $CONTAINER_NAME $IMAGE_NAME
     # Wait for the container to start (optional, but recommended)
-    Start-Sleep -Seconds 5
+    #Start-Sleep -Seconds 5
 
-    docker exec $CONTAINER_NAME func keys set $FUNCTION_NAME $KEY_NAME --value $KEY_VALUE
+    #docker exec $CONTAINER_NAME func keys set $FUNCTION_NAME $KEY_NAME --value $KEY_VALUE
 }
 catch {
     Write-Error "Script failed: $_"
