@@ -8,7 +8,7 @@
         "get",
         "post"
       ],
-      "authLevel": "function",
+      "authLevel": "anonymous",
       "name": "req"
     }
   ],

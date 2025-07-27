@@ -1,9 +1,0 @@
-{
-  "profiles": {
-    "Azure_Function_As_Container_Minimal_Lab_ps": {
-      "commandName": "Project",
-      "commandLineArgs": "--port 7196",
-      "launchBrowser": false
-    }
-  }
-}
