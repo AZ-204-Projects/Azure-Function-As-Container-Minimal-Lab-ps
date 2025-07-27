@@ -142,9 +142,37 @@ finally {
 #### Run the script
 .\create-docker-image-and-local-container.ps1
 
+### 3. Docker Setup and Run Locally
 
+#### Create a script to create a Azure Resource Group, an ACR and push the image from Docker Desktop to the ACR container (`publish-to-acr.ps1`) and run it.
 
+```powershell name=publish-to-acr.ps1
 
+. .\source.ps1  # reference the variables
+
+# 1. Create Resource Group (idempotent)
+az group create --name $RG_NAME --location $LOCATION
+
+# 2. Create ACR (idempotent)
+az acr create --resource-group $RG_NAME --name $ACR_NAME --sku Basic
+
+# 3. Login to ACR (idempotent)
+az acr login --name $ACR_NAME
+
+# 4. Tag Docker Image (idempotent, but check existence for clarity)
+$imageExists = docker images -q $IMAGE_NAME
+if (-not $imageExists) {
+    Write-Error "Local image $IMAGE_NAME not found. Build it before running this script."
+    exit 1
+}
+docker tag $IMAGE_NAME $FULL_IMAGE_NAME
+
+# 5. Push Image (idempotent: Docker skips unchanged layers)
+docker push $FULL_IMAGE_NAME
+
+```
+#### Run the script
+.\create-docker-image-and-local-container.ps1
 
 
 
@@ -176,10 +204,10 @@ catch {
 finally {
     # Restore the original directory
     Set-Location $originalDir
-}
+}.\
 ```
 #### Run the script
-.\create-Dockerfile.ps1
+.\publish-to-acr.ps1
 
 ---
 
