@@ -139,6 +139,8 @@ finally {
 #### Run the script
 .\create-docker-image-and-local-container.ps1
 
+local Docker Desktop hosted api can be tested at: http://localhost:7075/api/ContainerTrafficFunction
+
 
 ### 4. Resource Group, ACR, push, 
 
@@ -170,7 +172,7 @@ docker push $FULL_IMAGE_NAME
 
 ```
 #### Run the script
-.\create-docker-image-and-local-container.ps1
+.\publish-to-acr.ps1
 
 
 
@@ -227,18 +229,21 @@ az functionapp config container set `
 #### Run the script
 .\create-function-app-configure-show.ps1
 
-
+**Best Practice:**  
+- Never commit secrets or keys to source control.
+- Rotate keys periodically and use Azure Key Vault for production usage.
 
 ### 5. Test API from browser 
-
-#### Create a script to create a Azure Resource Group, and ACR and push the image from Docker Desktop to the ACR container (`publish-to-acr.ps1`) and run it.
 
 ```
 https://container-traffic-func-app.azurewebsites.net/api/ContainerTrafficFunction?code=<the code>&name=<some text>
 ```
 
-
 ---
 
 ## Done!  
 You now have a minimal "Hello World" Azure Function deployed as a container.
+
+
+
+
