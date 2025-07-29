@@ -8,15 +8,17 @@ $PROJECT_FOLDER  = "ContainerTrafficFunctionProj"
 $FUNCTION_APP_NAME   = "container-traffic-func-app"
 $FUNCTION_NAME   = "ContainerTrafficFunction"
 $PUBLISH_OUTPUT  = "publish_output"
+$IMAGE_TAG       = "v1.0.1"  #changed for new version
 $IMAGE_NAME      = "container-traffic-func-img"
-$CONTAINER_NAME  = "container-traffic-func-name"
-$HOST_PORT       = 7075
-$CONTAINER_PORT  = 80
+$CONTAINER_NAME  = "container-traffic-func-name${IMAGE_TAG}"
+$HOST_PORT       = 7076  # used in local Docker Desktop for new version
+$CONTAINER_PORT  = 80    # used in local Docker Desktop for new version
+$PROD_PERCENT    = "50"
+$STAGE_PERCENT   = "50"
 
 # ACR-specific
 $ACR_NAME        = "containertrafficreg0727am"
 $ACR_LOGIN_SVR   = "$ACR_NAME.azurecr.io"
-$IMAGE_TAG       = "v1.0.0"
 $FULL_IMAGE_NAME = "${ACR_LOGIN_SVR}/${IMAGE_NAME}:${IMAGE_TAG}"
 
 # Try to get subscription ID from environment variable, otherwise fetch from Azure CLI
@@ -38,6 +40,8 @@ Write-Host "Image Name: $IMAGE_NAME"
 Write-Host "Container Name: $CONTAINER_NAME"       
 Write-Host "Host Port: $HOST_PORT"
 Write-Host "Container Port: $CONTAINER_PORT"
+Write-Host "Prod %: $PROD_PERCENT"
+Write-Host "Stage %: $STAGE_PERCENT"
 Write-Host "Subscription ID: $SUBSCRIPTION_ID"
 Write-Host "ACR Name: $ACR_NAME"
 Write-Host "ACR Login Server: $ACR_LOGIN_SVR"
