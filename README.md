@@ -30,6 +30,7 @@ $PUBLISH_OUTPUT  = "publish_output"
 $IMAGE_NAME      = "container-traffic-func-img"
 $CONTAINER_NAME  = "container-traffic-func-name"
 $HOST_PORT       = 7075
+$HOST_PORT_V2    = 7076
 $CONTAINER_PORT  = 80
 
 # ACR-specific
@@ -56,6 +57,7 @@ Write-Host "Publish Output Folder: $PUBLISH_OUTPUT"
 Write-Host "Image Name: $IMAGE_NAME"
 Write-Host "Container Name: $CONTAINER_NAME"       
 Write-Host "Host Port: $HOST_PORT"
+Write-Host "Host Port v2: $HOST_PORT_V2"
 Write-Host "Container Port: $CONTAINER_PORT"
 Write-Host "Subscription ID: $SUBSCRIPTION_ID"
 Write-Host "ACR Name: $ACR_NAME"
@@ -233,7 +235,7 @@ az functionapp config container set `
 - Never commit secrets or keys to source control.
 - Rotate keys periodically and use Azure Key Vault for production usage.
 
-### 5. Test API from browser 
+### 6. Test API from browser 
 
 ```
 https://container-traffic-func-app.azurewebsites.net/api/ContainerTrafficFunction?code=<the code>&name=<some text>
@@ -244,6 +246,60 @@ https://container-traffic-func-app.azurewebsites.net/api/ContainerTrafficFunctio
 ## Done!  
 You now have a minimal "Hello World" Azure Function deployed as a container.
 
+# Traffic Routing and Canary Deployment for Azure Functions with ACR
 
+Now that you have your first version (v1) of the Azure Function container running, let’s explore how to route traffic between versions (e.g., to test a new version before full rollout, aka canary deployment).
+
+## 7. **Update your function code locally** (e.g., change the response, add a feature).
+
+## 8. Publish a New Version of Your Function and Test locally from Docker Desktop (v2)
+
+
+
+
+
+#### Create a script to create the Docker image and the Docker container locally and run the Docker container locally (`create-docker-image-and-local-container.ps1`) and run it.
+
+```powershell name=create-docker-image-and-local-container-v2.ps1
+# create-docker-image-and-local-container-v2.ps1
+
+. .\source.ps1  # Dot-source the variables file
+$targetPath = Join-Path $PSScriptRoot $PROJECT_FOLDER
+
+$originalDir = Get-Location
+try {
+    Set-Location "${PSScriptRoot}\${PROJECT_FOLDER}"
+    dotnet publish -c Release -o "./$PUBLISH_OUTPUT"
+    docker build -t $IMAGE_NAME:v2 .                                    # note the 'v2'
+    docker run -p "${HOST_PORT}:${CONTAINER_PORT}" --name $CONTAINER_NAME $IMAGE_NAME:v2
+}
+catch {
+    Write-Error "Script failed: $_"
+}
+finally {
+    Set-Location $originalDir
+}
+```
+#### Run the script
+.\create-docker-image-and-local-container-v2.ps1
+
+local Docker Desktop hosted api can be tested at: http://localhost:7076/api/ContainerTrafficFunction
+
+
+
+
+
+1. **Update your function code locally** (e.g., change the response, add a feature).
+2. **Build and tag your new image**:
+   ```powershell
+   docker build -t $IMAGE_NAME:v2 .
+   docker tag $IMAGE_NAME:v2 $ACR_NAME.azurecr.io/$IMAGE_NAME:v2
+   ```
+3. **Push the new version to ACR**:
+   ```powershell
+   docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:v2
+   ```
+
+---
 
 
