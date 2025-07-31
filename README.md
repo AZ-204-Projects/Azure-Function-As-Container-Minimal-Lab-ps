@@ -147,7 +147,7 @@ finally {
 
 Local Docker Desktop hosted api can be tested at (only if AuthorizationLevel set to "Anonymous"): http://localhost:7075/api/ContainerFunction
 
-> **Note:** If `AuthorizationLevel` is NOT set to `"Anonymous"` then "HTTP ERROR 401" for Unauthorized is the correct and expected response.  Good job!  Continue with the next step!  But... at this point my VS Code terminal is ussually locked by the Docker Desktop hosting process.  There are two easy solutions: (1) use Docker Desktop to stop the container (you do not need it!) or (2) open another terminal in VS Code.  The advertised "Press Ctrl+C to shut down" never works for me.
+> **Note:** If `AuthorizationLevel` is NOT set to `"Anonymous"` then "HTTP ERROR 401" for Unauthorized is the correct and expected response.  Good job!  Continue with the next step!  But... at this point, my VS Code terminal is usually locked by the Docker Desktop hosting process.  There are two easy solutions: (1) use Docker Desktop to stop the container (you do not need it!) or (2) open another terminal in VS Code.  The advertised "Press Ctrl+C to shut down" never works for me.
 
 
 ### 4. Resource Group, ACR, push, 
@@ -246,63 +246,103 @@ https://container-traffic-func-app.azurewebsites.net/api/ContainerTrafficFunctio
 
 ---
 
-## Done!  
+## Done with deploying first version!  
 You now have a minimal "Hello World" Azure Function deployed as a container.
 
-# Traffic Routing and Canary Deployment for Azure Functions with ACR
-
-Now that you have your first version (v1) of the Azure Function container running, let’s explore how to route traffic between versions (e.g., to test a new version before full rollout, aka canary deployment).
-
-## 7. **Update your function code locally** (e.g., change the response, add a feature).
-
-## 8. Publish a New Version of Your Function and Test locally from Docker Desktop (v2)
 
 
+## Deploying New Versions and Using Staging Slots
+
+The next steps are to make some changes to the Azure Function (to simulate new features) and push to ACR with a new version number.
+
+Take note of how much work the IMAGE_TAG var and the other vars in source.ps1 and idempotency are doing here. We get to reuse most of our scripts with no change in the update process !
+
+### 7. Update and push a new version
+
+- Make code changes to the Azure Function (could be as simple as changing a returned string to contain the new version number).
+- Update `IMAGE_TAG` in `source.ps1` (e.g., from `"v2.0.0"` to `"v2.0.1"`).
+- Re-run:
+  - `.\create-docker-image-and-local-container.ps1`
+  - `.\publish-to-acr.ps1`
+
+Your Azure Container Registry (ACR) now contains both image versions (check in the portal container registry page under Services/Repositories ):
+- `v2.0.0` (previous)
+- `v2.0.1` (latest)
+
+### 8. Create and Run a script to create a staging slot and deploy the new version
 
 
+```powershell name=create-staging-slot-configure-show.ps1
 
-#### Create a script to create the Docker image and the Docker container locally and run the Docker container locally (`create-docker-image-and-local-container.ps1`) and run it.
+. .\source.ps1  # Reference your variable file
 
-```powershell name=create-docker-image-and-local-container-v2.ps1
-# create-docker-image-and-local-container-v2.ps1
+# Enable ACR admin (idempotent)
+az acr update -n $ACR_NAME --admin-enabled true
 
-. .\source.ps1  # Dot-source the variables file
-$targetPath = Join-Path $PSScriptRoot $PROJECT_FOLDER
+# Create staging slot if it doesn't exist (idempotent)
+az functionapp deployment slot create `
+  --name $FUNCTION_APP_NAME `
+  --resource-group $RG_NAME `
+  --slot staging
 
-$originalDir = Get-Location
-try {
-    Set-Location "${PSScriptRoot}\${PROJECT_FOLDER}"
-    dotnet publish -c Release -o "./$PUBLISH_OUTPUT"
-    docker build -t $IMAGE_NAME:v2 .                                    # note the 'v2'
-    docker run -p "${HOST_PORT}:${CONTAINER_PORT}" --name $CONTAINER_NAME $IMAGE_NAME:v2
-}
-catch {
-    Write-Error "Script failed: $_"
-}
-finally {
-    Set-Location $originalDir
-}
+# Configure ACR authentication and container image for the staging slot
+az functionapp config container set `
+  --name $FUNCTION_APP_NAME `
+  --resource-group $RG_NAME `
+  --slot staging `
+  --image $FULL_IMAGE_NAME `
+  --registry-username $(az acr credential show -n $ACR_NAME --query username -o tsv) `
+  --registry-password $(az acr credential show -n $ACR_NAME --query passwords[0].value -o tsv)
+
+# Show function hostname and function keys for the staging slot
+Start-Sleep -Seconds 5
+az functionapp show --name $FUNCTION_APP_NAME --resource-group $RG_NAME --slot staging --query defaultHostName -o tsv
+az functionapp function keys list --function-name $FUNCTION_NAME --name $FUNCTION_APP_NAME --resource-group $RG_NAME --slot staging
+
 ```
 #### Run the script
-.\create-docker-image-and-local-container-v2.ps1
+.\create-staging-slot-configure-show.ps1
 
-local Docker Desktop hosted api can be tested at: http://localhost:7076/api/ContainerTrafficFunction
+### 9. Test the staging slot and prod slot
+
+- Invoke your function at:  
+  `https://<functionappname>-staging.azurewebsites.net/api/ContainerFunction?...`
+- Validate all new functionality.
+
+- Invoke your old function at:  
+  `https://<functionappname>.azurewebsites.net/api/ContainerFunction?...`
+- Validate all old functionality (it is still here).
 
 
+### 10. Create and Run the script to Swap staging to production
+
+```powershell
+. .\source.ps1  # Reference your variable file
+
+az functionapp deployment slot swap `
+  --name $FUNCTION_APP_NAME `
+  --resource-group $RG_NAME `
+  --slot staging
+
+```
+#### Run the script
+.\slot-swap.ps1 
+
+- This promotes the staging slot (with v2.0.1) to production.
+- The previous production version is now in the staging slot (easy rollback).
+
+### 11. Test the staging slot and prod slot
+
+- Invoke your function at:  
+  `https://<functionappname>-staging.azurewebsites.net/api/ContainerFunction?...`
+- Validate all new functionality.  (prod v2.0.0 should be back here again!)
+
+- Invoke your function at:  
+  `https://<functionappname>.azurewebsites.net/api/ContainerFunction?...`
+- Validate all old functionality. (new version 2.0.1 should be here now)
 
 
+### 12. Rollback to previous version (if needed)
 
-1. **Update your function code locally** (e.g., change the response, add a feature).
-2. **Build and tag your new image**:
-   ```powershell
-   docker build -t $IMAGE_NAME:v2 .
-   docker tag $IMAGE_NAME:v2 $ACR_NAME.azurecr.io/$IMAGE_NAME:v2
-   ```
-3. **Push the new version to ACR**:
-   ```powershell
-   docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:v2
-   ```
-
----
-
+Just run .\slot-swap.ps1 again and test the endpoints again.
 
