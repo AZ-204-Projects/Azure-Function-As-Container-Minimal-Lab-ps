@@ -1,5 +1,5 @@
 # Azure-Function-As-Container-Minimal-Lab-ps
-Azure-Function-As-Container-Minimal-Lab-ps
+
 # Minimal "Hello World" Azure Function Deployed as a Container
 
 This guide will walk you through creating a minimal Azure Function ("Hello World"), containerizing it, and deploying it to Azure.
@@ -19,23 +19,23 @@ This guide will walk you through creating a minimal Azure Function ("Hello World
 ```powershell name=source.ps1
 # source.ps1
 
-$RG_NAME         = "az-204-container-traffic-lab-rg"
+$RG_NAME         = "az-204-func-container-staging-rg"
 $LOCATION        = "westus"
-$STORAGE_NAME    = "containerstorage0727am"
+$STORAGE_NAME    = "containerstorage0729am"  # put something unique here
 $PLAN_NAME       = "container-app-plan"
-$PROJECT_FOLDER  = "ContainerTrafficFunctionProj"
-$FUNCTION_APP_NAME   = "container-traffic-func-app"
-$FUNCTION_NAME   = "ContainerTrafficFunction"
+$PROJECT_FOLDER  = "ContainerFunctionProj"
+$FUNCTION_APP_NAME = "acr-func-app"
+$FUNCTION_NAME   = "ContainerFunction"
 $PUBLISH_OUTPUT  = "publish_output"
-$IMAGE_NAME      = "container-traffic-func-img"
-$CONTAINER_NAME  = "container-traffic-func-name"
-$HOST_PORT       = 7075
-$CONTAINER_PORT  = 80
+$IMAGE_TAG       = "v2.0.0"  #change for new version
+$IMAGE_NAME      = "container-func-img"
+$CONTAINER_NAME  = "container-func-name${IMAGE_TAG}"
+$HOST_PORT       = 7075  # used in local Docker Desktop 
+$CONTAINER_PORT  = 80    # used in local Docker Desktop 
 
 # ACR-specific
-$ACR_NAME        = "containertrafficreg0727am"
+$ACR_NAME        = "containerreg0729am"  # put something unique here
 $ACR_LOGIN_SVR   = "$ACR_NAME.azurecr.io"
-$IMAGE_TAG       = "v1.0.0"
 $FULL_IMAGE_NAME = "${ACR_LOGIN_SVR}/${IMAGE_NAME}:${IMAGE_TAG}"
 
 # Try to get subscription ID from environment variable, otherwise fetch from Azure CLI
@@ -62,12 +62,11 @@ Write-Host "ACR Name: $ACR_NAME"
 Write-Host "ACR Login Server: $ACR_LOGIN_SVR"
 Write-Host "Full Image Name: $FULL_IMAGE_NAME"
 
-
 ```
 
 ### 2. Application Setup
 
-#### Create a script to scaffold a new Azure Function (.NET) with an HTTP Trigger (`init-function.ps1`) and run it.
+#### Create a script to scaffold a new Azure Function (.NET Core) with an HTTP Trigger (`init-function.ps1`) and run it.
 
 ```powershell name=init-function.ps1
 # init-function.ps1
@@ -79,7 +78,6 @@ if (Test-Path $targetPath) {
     exit 1
 }
 
-
 func init "$PROJECT_FOLDER" --worker-runtime dotnet --target-framework net8.0
 
 $originalDir = Get-Location
@@ -87,9 +85,7 @@ try {
     Set-Location "${PSScriptRoot}\${PROJECT_FOLDER}"
    func new --name "$FUNCTION_NAME" --template "HTTP trigger"
 
-
-
-       # Define Dockerfile content
+    # Define Dockerfile content
     $dockerFileContent = @"
 FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4 AS base
 WORKDIR /home/site/wwwroot
@@ -110,12 +106,22 @@ finally {
 .\init-function.ps1
 
 
-
-
 ### 3. Docker Setup and Run Locally
 
 #### Create a script to create the Docker image and the Docker container locally and run the Docker container locally (`create-docker-image-and-local-container.ps1`) and run it.
 
+> **Note:** If you want to test your Docker-hosted container with an Azure Function, you'll need to temporarily change the `AuthorizationLevel` to `"Anonymous"` for local Docker testing.  
+> Then revert it to `"Function"` and run the script again to restore a secure state for ACR testing.  If you do change the `AuthorizationLevel` to `"Anonymous"` and then need to revert it and re-run the create-docker-image-and-local-container.ps1 script, I suggest you delete both the container and the image in Docker Desktop before re-running the script.
+> Yes, this is cumbersome — at this time, all known alternatives have other consequences.  
+> You can alternatively **skip** testing the function in local Docker hosting.
+>
+> **Original (for ACR):**  
+> `[HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req`
+>
+> **Temporary (for local Docker):**  
+> `[HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req`
+         
+         
 ```powershell name=create-docker-image-and-local-container.ps1
 # create-docker-image-and-local-container.ps1
 
@@ -139,7 +145,9 @@ finally {
 #### Run the script
 .\create-docker-image-and-local-container.ps1
 
-local Docker Desktop hosted api can be tested at: http://localhost:7075/api/ContainerTrafficFunction
+Local Docker Desktop hosted api can be tested at (only if AuthorizationLevel set to "Anonymous"): http://localhost:7075/api/ContainerFunction
+
+> **Note:** If `AuthorizationLevel` is NOT set to `"Anonymous"` then "HTTP ERROR 401" for Unauthorized is the correct and expected response.  Good job!  Continue with the next step!  But... at this point, my VS Code terminal is usually locked by the Docker Desktop hosting process.  There are two easy solutions: (1) use Docker Desktop to stop the container (you do not need it!) or (2) open another terminal in VS Code.  The advertised "Press Ctrl+C to shut down" never works for me.
 
 
 ### 4. Resource Group, ACR, push, 
@@ -150,16 +158,16 @@ local Docker Desktop hosted api can be tested at: http://localhost:7075/api/Cont
 
 . .\source.ps1  # reference the variables
 
-# 1. Create Resource Group (idempotent)
+# Create Resource Group (idempotent)
 az group create --name $RG_NAME --location $LOCATION
 
-# 2. Create ACR (idempotent)
+# Create ACR (idempotent)
 az acr create --resource-group $RG_NAME --name $ACR_NAME --sku Basic
 
-# 3. Login to ACR (idempotent)
+# Login to ACR (idempotent)
 az acr login --name $ACR_NAME
 
-# 4. Tag Docker Image (idempotent, but check existence for clarity)
+# Tag Docker Image (idempotent, but check existence for clarity)
 $imageExists = docker images -q $IMAGE_NAME
 if (-not $imageExists) {
     Write-Error "Local image $IMAGE_NAME not found. Build it before running this script."
@@ -167,14 +175,12 @@ if (-not $imageExists) {
 }
 docker tag $IMAGE_NAME $FULL_IMAGE_NAME
 
-# 5. Push Image (idempotent: Docker skips unchanged layers)
+# Push Image (idempotent: Docker skips unchanged layers)
 docker push $FULL_IMAGE_NAME
 
 ```
 #### Run the script
 .\publish-to-acr.ps1
-
-
 
 
 ### 5. Resource Group, ACR, push, 
@@ -185,13 +191,13 @@ docker push $FULL_IMAGE_NAME
 
 . .\source.ps1  # Reference your variable file
 
-# 1. Enable ACR admin (idempotent)
+# Enable ACR admin (idempotent)
 az acr update -n $ACR_NAME --admin-enabled true
 
-# 2. Create Storage Account (idempotent)
+# Create Storage Account (idempotent)
 az storage account create --name $STORAGE_NAME --location $LOCATION --resource-group $RG_NAME --sku Standard_LRS
 
-# 3. Create Function App Plan
+# Create Function App Plan
 az functionapp plan create `
   --name $PLAN_NAME `
   --resource-group $RG_NAME `
@@ -200,7 +206,7 @@ az functionapp plan create `
   --sku EP1 `
   --is-linux
 
-# 4. Create (or update) Function App 
+# Create (or update) Function App 
 az functionapp create `
   --name $FUNCTION_APP_NAME `
   --storage-account $STORAGE_NAME `
@@ -211,7 +217,7 @@ az functionapp create `
   --os-type Linux `
   --runtime custom
 
-# 5. Configure ACR authentication for Function App
+# Configure ACR authentication for Function App
 az functionapp config container set `
   --name $FUNCTION_APP_NAME `
   --resource-group $RG_NAME `
@@ -219,11 +225,10 @@ az functionapp config container set `
   --registry-username $(az acr credential show -n $ACR_NAME --query username -o tsv) `
   --registry-password $(az acr credential show -n $ACR_NAME --query passwords[0].value -o tsv)
 
-# 6. Show function and key in log or terminal
+# Show function and key in log or terminal
    Start-Sleep -Seconds 5
    az functionapp show --name $FUNCTION_APP_NAME --resource-group $RG_NAME --query defaultHostName -o tsv
    az functionapp function keys list --function-name $FUNCTION_NAME --name $FUNCTION_APP_NAME --resource-group $RG_NAME
-
 
 ```
 #### Run the script
@@ -233,7 +238,7 @@ az functionapp config container set `
 - Never commit secrets or keys to source control.
 - Rotate keys periodically and use Azure Key Vault for production usage.
 
-### 5. Test API from browser 
+### 6. Test API from browser 
 
 ```
 https://container-traffic-func-app.azurewebsites.net/api/ContainerTrafficFunction?code=<the code>&name=<some text>
@@ -241,9 +246,103 @@ https://container-traffic-func-app.azurewebsites.net/api/ContainerTrafficFunctio
 
 ---
 
-## Done!  
+## Done with deploying first version!  
 You now have a minimal "Hello World" Azure Function deployed as a container.
 
 
 
+## Deploying New Versions and Using Staging Slots
+
+The next steps are to make some changes to the Azure Function (to simulate new features) and push to ACR with a new version number.
+
+Take note of how much work the IMAGE_TAG var and the other vars in source.ps1 and idempotency are doing here. We get to reuse most of our scripts with no change in the update process !
+
+### 7. Update and push a new version
+
+- Make code changes to the Azure Function (could be as simple as changing a returned string to contain the new version number).
+- Update `IMAGE_TAG` in `source.ps1` (e.g., from `"v2.0.0"` to `"v2.0.1"`).
+- Re-run:
+  - `.\create-docker-image-and-local-container.ps1`
+  - `.\publish-to-acr.ps1`
+
+Your Azure Container Registry (ACR) now contains both image versions (check in the portal container registry page under Services/Repositories ):
+- `v2.0.0` (previous)
+- `v2.0.1` (latest)
+
+### 8. Create and Run a script to create a staging slot and deploy the new version
+
+
+```powershell name=create-staging-slot-configure-show.ps1
+
+. .\source.ps1  # Reference your variable file
+
+# Enable ACR admin (idempotent)
+az acr update -n $ACR_NAME --admin-enabled true
+
+# Create staging slot if it doesn't exist (idempotent)
+az functionapp deployment slot create `
+  --name $FUNCTION_APP_NAME `
+  --resource-group $RG_NAME `
+  --slot staging
+
+# Configure ACR authentication and container image for the staging slot
+az functionapp config container set `
+  --name $FUNCTION_APP_NAME `
+  --resource-group $RG_NAME `
+  --slot staging `
+  --image $FULL_IMAGE_NAME `
+  --registry-username $(az acr credential show -n $ACR_NAME --query username -o tsv) `
+  --registry-password $(az acr credential show -n $ACR_NAME --query passwords[0].value -o tsv)
+
+# Show function hostname and function keys for the staging slot
+Start-Sleep -Seconds 5
+az functionapp show --name $FUNCTION_APP_NAME --resource-group $RG_NAME --slot staging --query defaultHostName -o tsv
+az functionapp function keys list --function-name $FUNCTION_NAME --name $FUNCTION_APP_NAME --resource-group $RG_NAME --slot staging
+
+```
+#### Run the script
+.\create-staging-slot-configure-show.ps1
+
+### 9. Test the staging slot and prod slot
+
+- Invoke your function at:  
+  `https://<functionappname>-staging.azurewebsites.net/api/ContainerFunction?...`
+- Validate all new functionality.
+
+- Invoke your old function at:  
+  `https://<functionappname>.azurewebsites.net/api/ContainerFunction?...`
+- Validate all old functionality (it is still here).
+
+
+### 10. Create and Run the script to Swap staging to production
+
+```powershell
+. .\source.ps1  # Reference your variable file
+
+az functionapp deployment slot swap `
+  --name $FUNCTION_APP_NAME `
+  --resource-group $RG_NAME `
+  --slot staging
+
+```
+#### Run the script
+.\slot-swap.ps1 
+
+- This promotes the staging slot (with v2.0.1) to production.
+- The previous production version is now in the staging slot (easy rollback).
+
+### 11. Test the staging slot and prod slot
+
+- Invoke your function at:  
+  `https://<functionappname>-staging.azurewebsites.net/api/ContainerFunction?...`
+- Validate all new functionality.  (prod v2.0.0 should be back here again!)
+
+- Invoke your function at:  
+  `https://<functionappname>.azurewebsites.net/api/ContainerFunction?...`
+- Validate all old functionality. (new version 2.0.1 should be here now)
+
+
+### 12. Rollback to previous version (if needed)
+
+Just run .\slot-swap.ps1 again and test the endpoints again.
 
