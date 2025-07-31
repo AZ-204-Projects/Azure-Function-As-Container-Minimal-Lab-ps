@@ -1,8 +1,11 @@
 # Azure-Function-As-Container-Minimal-Lab-ps
 
-# Minimal "Hello World" Azure Function Deployed as a Container
+# Minimal "Hello World" Azure Function Deployed as a Container with Slot Swapping
 
-This guide will walk you through creating a minimal Azure Function ("Hello World"), containerizing it, and deploying it to Azure.
+This guide will walk you through:
+- creating a minimal Azure Function ("Hello World"), containerizing it, and deploying it to Azure
+- creating an updated version of the Azure Function, containerizing it, and deploying it to Azure in a slot
+- swapping slots to simulate an instantanious deployment and rollback
 
 ---
 
@@ -21,7 +24,7 @@ This guide will walk you through creating a minimal Azure Function ("Hello World
 
 $RG_NAME         = "az-204-func-container-staging-rg"
 $LOCATION        = "westus"
-$STORAGE_NAME    = "containerstorage0729am"  # put something unique here
+$STORAGE_NAME    = "containerstorage0729am"  # put something unique here, like ending with a date-time
 $PLAN_NAME       = "container-app-plan"
 $PROJECT_FOLDER  = "ContainerFunctionProj"
 $FUNCTION_APP_NAME = "acr-func-app"
@@ -34,7 +37,7 @@ $HOST_PORT       = 7075  # used in local Docker Desktop
 $CONTAINER_PORT  = 80    # used in local Docker Desktop 
 
 # ACR-specific
-$ACR_NAME        = "containerreg0729am"  # put something unique here
+$ACR_NAME        = "containerreg0729am"  # put something unique here, like ending with a date-time
 $ACR_LOGIN_SVR   = "$ACR_NAME.azurecr.io"
 $FULL_IMAGE_NAME = "${ACR_LOGIN_SVR}/${IMAGE_NAME}:${IMAGE_TAG}"
 
@@ -44,7 +47,7 @@ if ($env:AZURE_SUBSCRIPTION_ID) {
 } else {
     $SUBSCRIPTION_ID = (az account show --query id -o tsv)
 }
-
+# writing your vars to the terminal helps you debug
 Write-Host "Resource Group: $RG_NAME"
 Write-Host "Location: $LOCATION"
 Write-Host "Storage Account: $STORAGE_NAME"
