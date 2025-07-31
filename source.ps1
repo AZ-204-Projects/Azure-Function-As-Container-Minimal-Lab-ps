@@ -1,23 +1,21 @@
 # source.ps1
 
-$RG_NAME         = "az-204-container-traffic-lab-rg"
+$RG_NAME         = "az-204-func-container-staging-rg"
 $LOCATION        = "westus"
-$STORAGE_NAME    = "containerstorage0727am"
+$STORAGE_NAME    = "containerstorage0729am"  # put something unique here
 $PLAN_NAME       = "container-app-plan"
-$PROJECT_FOLDER  = "ContainerTrafficFunctionProj"
-$FUNCTION_APP_NAME   = "container-traffic-func-app"
-$FUNCTION_NAME   = "ContainerTrafficFunction"
+$PROJECT_FOLDER  = "ContainerFunctionProj"
+$FUNCTION_APP_NAME = "acr-func-app"
+$FUNCTION_NAME   = "ContainerFunction"
 $PUBLISH_OUTPUT  = "publish_output"
-$IMAGE_TAG       = "v1.0.1"  #changed for new version
-$IMAGE_NAME      = "container-traffic-func-img"
-$CONTAINER_NAME  = "container-traffic-func-name${IMAGE_TAG}"
-$HOST_PORT       = 7076  # used in local Docker Desktop for new version
-$CONTAINER_PORT  = 80    # used in local Docker Desktop for new version
-$PROD_PERCENT    = "50"
-$STAGE_PERCENT   = "50"
+$IMAGE_TAG       = "v2.0.1"  #change for new version
+$IMAGE_NAME      = "container-func-img"
+$CONTAINER_NAME  = "container-func-name${IMAGE_TAG}"
+$HOST_PORT       = 7075  # used in local Docker Desktop 
+$CONTAINER_PORT  = 80    # used in local Docker Desktop 
 
 # ACR-specific
-$ACR_NAME        = "containertrafficreg0727am"
+$ACR_NAME        = "containerreg0729am"  # put something unique here
 $ACR_LOGIN_SVR   = "$ACR_NAME.azurecr.io"
 $FULL_IMAGE_NAME = "${ACR_LOGIN_SVR}/${IMAGE_NAME}:${IMAGE_TAG}"
 
@@ -40,8 +38,6 @@ Write-Host "Image Name: $IMAGE_NAME"
 Write-Host "Container Name: $CONTAINER_NAME"       
 Write-Host "Host Port: $HOST_PORT"
 Write-Host "Container Port: $CONTAINER_PORT"
-Write-Host "Prod %: $PROD_PERCENT"
-Write-Host "Stage %: $STAGE_PERCENT"
 Write-Host "Subscription ID: $SUBSCRIPTION_ID"
 Write-Host "ACR Name: $ACR_NAME"
 Write-Host "ACR Login Server: $ACR_LOGIN_SVR"

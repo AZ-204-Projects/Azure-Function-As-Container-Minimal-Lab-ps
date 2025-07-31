@@ -1,8 +1,8 @@
 {
   "profiles": {
-    "ContainerTrafficFunctionProj": {
+    "ContainerFunctionProj": {
       "commandName": "Project",
-      "commandLineArgs": "--port 7257",
+      "commandLineArgs": "--port 7188",
       "launchBrowser": false
     }
   }

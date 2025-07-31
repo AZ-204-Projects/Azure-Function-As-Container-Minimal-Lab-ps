@@ -8,11 +8,11 @@
         "get",
         "post"
       ],
-      "authLevel": "anonymous",
+      "authLevel": "function",
       "name": "req"
     }
   ],
   "disabled": false,
-  "scriptFile": "../bin/ContainerTrafficFunctionProj.dll",
-  "entryPoint": "ContainerTrafficFunctionProj.ContainerTrafficFunction.Run"
+  "scriptFile": "../bin/ContainerFunctionProj.dll",
+  "entryPoint": "ContainerFunctionProj.ContainerFunction.Run"
 }

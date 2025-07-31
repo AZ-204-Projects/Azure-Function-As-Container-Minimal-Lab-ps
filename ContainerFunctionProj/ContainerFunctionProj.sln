@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36212.18 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ContainerTrafficFunctionProj", "ContainerTrafficFunctionProj.csproj", "{30F1839D-63BC-032D-7B7D-4E18C4964EFE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ContainerFunctionProj", "ContainerFunctionProj.csproj", "{E19BE50E-0852-410E-181A-07541D9CED61}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +11,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{30F1839D-63BC-032D-7B7D-4E18C4964EFE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{30F1839D-63BC-032D-7B7D-4E18C4964EFE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{30F1839D-63BC-032D-7B7D-4E18C4964EFE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{30F1839D-63BC-032D-7B7D-4E18C4964EFE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E19BE50E-0852-410E-181A-07541D9CED61}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E19BE50E-0852-410E-181A-07541D9CED61}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E19BE50E-0852-410E-181A-07541D9CED61}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E19BE50E-0852-410E-181A-07541D9CED61}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {3CA636C0-1FB2-4DAE-AF0C-2521EBCC9F46}
+		SolutionGuid = {0B2BC8FC-97AD-455F-8B47-859373C8C1D4}
 	EndGlobalSection
 EndGlobal
